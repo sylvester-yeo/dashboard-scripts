@@ -2,11 +2,12 @@ WITH fo AS (
     SELECT 
         last_booking_code
         ,order_id
-        ,cast(json_extract_scalar(snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommissionPreVAT') AS double) / power(double '10.0', coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int),0)) AS mex_commission_pre_vat
+        ,(cast(coalesce(json_extract_scalar(snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommissionPreVAT'),'0.0') as double) + cast(coalesce(json_extract_scalar(snapshot_detail, '$.cartWithQuote.totalQuoteInMin.gkCommission'),'0.0') as double)) 
+			/ power(double '10.0', coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int),0)) AS mex_commission_pre_vat
         ,CAST(json_extract_scalar(snapshot_detail, '$.cartWithQuote.merchantCartWithQuoteList[0].merchantInfoObj.taxRate') AS double) AS tax_rate
     FROM public.prejoin_food_order
-    WHERE date(partition_date) >= date([[inc_start_date]])
-	    AND date(partition_date) <= DATE([[inc_end_date]]) 
+    WHERE date(partition_date) >= date([[inc_start_date]]) - interval '1' day
+	    AND date(partition_date) <= DATE([[inc_end_date]]) + interval '1' day
 )
 , booking_item as (
     SELECT
@@ -176,7 +177,7 @@ FROM
 	      WHEN 
 	  	  		bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-	            fo.mex_commission_pre_vat / fx_one_usd
+	            coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) / fx_one_usd
 	     ELSE 0.0
 	     END) AS mex_commission
 	       
@@ -184,13 +185,13 @@ FROM
 	      WHEN 
 	      		bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-				fo.mex_commission_pre_vat
+				coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant)
 	     ELSE 0.0
 	     END) AS mex_commission_local
 
     ,sum(CASE 
         WHEN 
-            bookings.booking_state_simple = 'COMPLETED'
+            bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
         THEN 
             bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))
         ELSE 0.0
@@ -198,7 +199,7 @@ FROM
 
     ,sum(CASE 
         WHEN 
-            bookings.booking_state_simple = 'COMPLETED'
+            bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
         THEN 
             (bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))) / fx_one_usd
         ELSE 0.0
@@ -446,7 +447,7 @@ FROM
         when 
             is_takeaway = 1 and booking_state_simple = 'COMPLETED'
         THEN 
-            fo.mex_commission_pre_vat 
+            coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) 
         ELSE 0
         END) AS takeaway_mex_commission_local  
 
@@ -454,13 +455,13 @@ FROM
         when 
             is_takeaway = 1 and booking_state_simple = 'COMPLETED'
         THEN 
-            fo.mex_commission_pre_vat / fx_one_usd
+            coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) / fx_one_usd
         ELSE 0
         END) AS takeaway_mex_commission_usd 
 
     ,sum(CASE 
         WHEN 
-            is_takeaway = 1 and booking_state_simple = 'COMPLETED'
+            is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
         THEN 
             bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))
         ELSE 0.0
@@ -468,7 +469,7 @@ FROM
 
     ,sum(CASE 
         WHEN 
-            is_takeaway = 1 and booking_state_simple = 'COMPLETED'
+            is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
         THEN 
             (bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))) / fx_one_usd
         ELSE 0.0
