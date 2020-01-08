@@ -110,9 +110,6 @@ FROM
 			,sum(promo_incoming_orders) as promo_incoming_orders
 			,sum(promo_completed_orders) as promo_completed_orders
 			
-			,sum(num_of_total_items) as num_of_total_items
-			,sum(total_item_price_usd) as total_item_price_usd
-			,sum(completed_orders_gf_item) as completed_orders_gf_item
 			,sum(jobs_accepted) as jobs_bid
 			,sum(jobs_received) as jobs_received
 			,sum(jobs_unread) as jobs_unread
@@ -136,6 +133,21 @@ FROM
             ,sum(takeaway_sub_total_local) as takeaway_sub_total_local
             ,sum(takeaway_time_from_order_create_to_completed) as takeaway_time_from_order_create_to_completed
 
+			--scheduled orders
+			,sum(total_scheduled_orders) as total_scheduled_orders
+			,sum(total_scheduled_completed_orders) as total_scheduled_completed_orders
+			,sum(scheduled_gmv_local) as scheduled_gmv_local
+			,sum(scheduled_gmv_usd) as scheduled_gmv_usd
+			,sum(scheduled_mex_commission_local) as scheduled_mex_commission_local
+			,sum(scheduled_mex_commission_usd) as scheduled_mex_commission_usd
+			,sum(scheduled_base_for_mex_commission_local) as scheduled_base_for_mex_commission_local
+			,sum(scheduled_base_for_mex_commission) as scheduled_base_for_mex_commission
+			,sum(scheduled_basket_size_usd) as scheduled_basket_size_usd
+			,sum(scheduled_basket_size_local) as scheduled_basket_size_local
+			,sum(scheduled_sub_total_usd) as scheduled_sub_total_usd
+			,sum(scheduled_total_date_diff) as scheduled_total_date_diff
+			,sum(scheduled_sub_total_local) as scheduled_sub_total_local
+
 			FROM 
 			(
 				SELECT 
@@ -143,7 +155,7 @@ FROM
 				date_trunc('month',date_local) AS month_of,	
 				*
 				FROM
-				slide.gf_mex_level_daily_metrics_v2 --to change once original table is rebuild			
+				slide.gf_mex_level_daily_metrics --to change once original table is rebuild			
 				WHERE partition_date_local >= date_trunc('month',date([[inc_start_date]])) - INTERVAL '1' MONTH
 				AND partition_date_local <= date([[inc_end_date]])
 			)

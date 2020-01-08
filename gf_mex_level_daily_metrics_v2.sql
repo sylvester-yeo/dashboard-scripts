@@ -1,42 +1,18 @@
-WITH fo AS (
-    SELECT 
-        last_booking_code
-        ,order_id
-        ,(cast(coalesce(json_extract_scalar(snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommissionPreVAT'),'0.0') as double) + cast(coalesce(json_extract_scalar(snapshot_detail, '$.cartWithQuote.totalQuoteInMin.gkCommission'),'0.0') as double)) 
-			/ power(double '10.0', coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int),0)) AS mex_commission_pre_vat
-        ,CAST(json_extract_scalar(snapshot_detail, '$.cartWithQuote.merchantCartWithQuoteList[0].merchantInfoObj.taxRate') AS double) AS tax_rate
-    FROM public.prejoin_food_order
-    WHERE date(partition_date) >= date([[inc_start_date]]) - interval '1' day
-	    AND date(partition_date) <= DATE([[inc_end_date]]) + interval '1' day
+with fo as (
+    select 
+        order_id
+        ,date_local
+        ,comms_pre_vat
+        ,(total_order_mfc_discount_affecting_comms) as total_order_mfc_discount_affecting_comms
+        ,(total_mfc_inc_tax) as total_mfc_inc_tax
+    from slide.gf_comms_base_v2
+    where date(partition_date) >= date([[inc_start_date]]) - interval '1' day
+        AND date(partition_date) <= DATE([[inc_end_date]]) + interval '1' day
+        AND date(date_local) >= date([[inc_start_date]])
+        AND date(date_local) <= date([[inc_end_date]])
 )
-, booking_item as (
+, bk_metrics as (
     SELECT
-        booking_code,
-        sum(cast(item_quantity as integer)) as num_of_total_items,
-        sum(cast(item_price AS double)/cast(rer.exchange_one_usd AS double)) AS total_item_price_usd,
-        sum(cast(item_price AS double)) AS total_item_price_local
-    from slide.gf_order_item_breakdown item
-    INNER JOIN datamart.ref_exchange_rates rer
-        ON item.country_id = rer.country_id
-            AND date_trunc('month',item.date_local) = date_trunc('month',start_date)
-            AND date_trunc('year',item.date_local) = date_trunc('year',start_date) 
-    WHERE date_local >= date([[inc_start_date]])
-        AND date_local <= DATE([[inc_end_date]])
-        AND date(partition_date) >= date([[inc_start_date]]) - INTERVAL '1' day
-        AND date(partition_date) <= date([[inc_end_date]]) + interval '1' day
-    GROUP BY 1 
-)
-SELECT 
-bk_metrics.*,
-coalesce(jobs_metrics.jobs_accepted,0) as jobs_accepted,
-coalesce(jobs_metrics.jobs_received,0) as jobs_received,
-coalesce(jobs_metrics.jobs_unread,0) as jobs_unread,
-bk_metrics.date_local as partition_date_local
-
-FROM
-
-(
-	SELECT
 	   date(bookings.date_local) AS date_local
 	   ,country_name
 	   ,city_name
@@ -177,7 +153,7 @@ FROM
 	      WHEN 
 	  	  		bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-	            coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) / fx_one_usd
+	            coalesce(bookings.commission_from_merchant,fo.comms_pre_vat) / fx_one_usd
 	     ELSE 0.0
 	     END) AS mex_commission
 	       
@@ -185,23 +161,23 @@ FROM
 	      WHEN 
 	      		bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-				coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant)
+				coalesce(bookings.commission_from_merchant,fo.comms_pre_vat)
 	     ELSE 0.0
 	     END) AS mex_commission_local
 
     ,sum(CASE 
         WHEN 
-            bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
+            bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))
+            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
         ELSE 0.0
         END) AS base_for_mex_commission_local
 
     ,sum(CASE 
         WHEN 
-            bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
+            bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            (bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))) / fx_one_usd
+            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
         ELSE 0.0
         END) AS base_for_mex_commission
 	       
@@ -262,37 +238,6 @@ FROM
 	     		bookings.is_promotion
 	     ELSE 0
 	     END) AS promo_completed_orders
-	     
-	,SUM(CASE
-	     WHEN 
-	     		bookings.booking_state_simple = 'COMPLETED'
-	      THEN 
-	      		num_of_total_items 
-	      ELSE 0 
-	      END) AS num_of_total_items
-	      
-	,SUM(CASE
-	     WHEN 
-	     		bookings.booking_state_simple = 'COMPLETED'
-	      THEN 
-	      		total_item_price_usd 
-	      ELSE 0 
-	      END) AS total_item_price_usd  
-	      
-	,SUM(CASE
-	     WHEN 
-	     		bookings.booking_state_simple = 'COMPLETED'
-	     THEN 
-	     		total_item_price_local
-	     ELSE 0 
-	     END) AS total_item_price_local  
-	     
-	,sum(CASE 
-		 WHEN 
-		 		bookings.booking_state_simple = 'COMPLETED' AND num_of_total_items IS NOT NULL            
-	     THEN 1 
-	     ELSE 0 
-	     END) AS completed_orders_gf_item
 	     
 	,sum(CASE
 		 WHEN bookings.booking_state_simple IN 
@@ -410,7 +355,7 @@ FROM
 	     	spot_incentive_bonus/fx_one_usd
 	     ELSE 0 END) AS spot_incentive_bonus_usd
 
-    --takeaway orders
+    /*============takeaway orders============*/
     ,sum(case 
         when 
             is_takeaway = 1
@@ -447,7 +392,7 @@ FROM
         when 
             is_takeaway = 1 and booking_state_simple = 'COMPLETED'
         THEN 
-            coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) 
+            coalesce(fo.comms_pre_vat,bookings.commission_from_merchant) 
         ELSE 0
         END) AS takeaway_mex_commission_local  
 
@@ -455,23 +400,23 @@ FROM
         when 
             is_takeaway = 1 and booking_state_simple = 'COMPLETED'
         THEN 
-            coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) / fx_one_usd
+            coalesce(fo.comms_pre_vat,bookings.commission_from_merchant) / fx_one_usd
         ELSE 0
         END) AS takeaway_mex_commission_usd 
 
     ,sum(CASE 
         WHEN 
-            is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
+            is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))
+            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
         ELSE 0.0
         END) AS takeaway_base_for_mex_commission_local
 
     ,sum(CASE 
         WHEN 
-            is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' and (coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) is not null or coalesce(fo.mex_commission_pre_vat,bookings.commission_from_merchant) <> 0)
+            is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            (bookings.food_sub_total - ((bookings.promo_expense - bookings.promo_code_expense)/cast(1+coalesce(fo.tax_rate,0) as double))) / fx_one_usd
+            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
         ELSE 0.0
         END) AS takeaway_base_for_mex_commission
 
@@ -511,73 +456,173 @@ FROM
 	       WHEN bookings.booking_state_simple = 'COMPLETED' AND is_advance<>1 and is_takeaway = 1 THEN CAST(bookings.time_to_complete AS double)/60.0 
 	       ELSE 0.0 
 	       END) AS takeaway_time_from_order_create_to_completed
+
+    /*============scheduled orders============*/
+	,sum(case 
+        when is_advance = 1
+        THEN 1 
+        ELSE 0 
+        END) AS total_scheduled_orders
+	     
+	,sum(case 
+        when is_advance = 1 and booking_state_simple = 'COMPLETED'
+        THEN 1 
+        ELSE 0 
+        END) AS total_scheduled_completed_orders
+
+    ,sum(case 
+        when is_advance = 1 and booking_state_simple = 'COMPLETED'
+        THEN gross_merchandise_value
+        ELSE 0
+        END) AS scheduled_gmv_local  
+
+    ,sum(case 
+        when is_advance = 1 and booking_state_simple = 'COMPLETED'
+        THEN 
+            gross_merchandise_value / fx_one_usd
+        ELSE 0
+        END) AS scheduled_gmv_usd 
+
+     ,sum(CASE
+	      WHEN 
+	  	  		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
+	      THEN
+	            coalesce(bookings.commission_from_merchant,fo.comms_pre_vat) / fx_one_usd
+	     ELSE 0.0
+	     END) AS scheduled_mex_commission
+	       
+	 ,sum(CASE
+	      WHEN 
+	      		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
+	      THEN
+				coalesce(bookings.commission_from_merchant,fo.comms_pre_vat)
+	     ELSE 0.0
+	     END) AS scheduled_mex_commission_local
+
+    ,sum(CASE 
+        WHEN 
+            is_advance = 1 and bookings.booking_state_simple = 'COMPLETED' 
+        THEN 
+            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
+        ELSE 0.0
+        END) AS scheduled_base_for_mex_commission_local
+
+    ,sum(CASE 
+        WHEN 
+            is_advance = 1 and bookings.booking_state_simple = 'COMPLETED' 
+        THEN 
+            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
+        ELSE 0.0
+        END) AS scheduled_base_for_mex_commission
+
+    ,sum(CASE 
+	  	   WHEN 
+	  	   		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED' 
+	       THEN 
+	       		basket_size / fx_one_usd
+	       ELSE 0.0
+	       END) AS scheduled_basket_size_usd
+	       
+	  ,sum(CASE
+	       WHEN 
+	       		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
+	       THEN 
+	       		basket_size       
+	       ELSE 0.0
+	       END) AS scheduled_basket_size_local
+	       
+	 ,sum(CASE
+	  	  WHEN 
+	  	  		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
+	  	  THEN	
+	  	  		bookings.food_sub_total / fx_one_usd
+		  ELSE 0.0
+	      END) AS scheduled_sub_total_usd
+	      
+	 ,SUM(CASE
+	  	  WHEN 
+	  	  		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
+	  	  THEN
+	      		bookings.food_sub_total
+	  	  ELSE 0.0
+	      END) AS scheduled_sub_total_local
+	     
+	 ,SUM(CASE
+	  	  WHEN 
+	  	  		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
+	  	  THEN
+	      		date_diff('day',date(created_at_local),date(pick_up_time_local)) 
+	  	  ELSE cast(0.0 as double)
+	      END) AS scheduled_total_date_diff
 	     
 	     
 	FROM datamart_grabfood.base_bookings bookings
 
-    LEFT JOIN fo on bookings.order_id = fo.order_id
-	
-	LEFT JOIN booking_item ON bookings.booking_code = booking_item.booking_code
+    left join fo 
+        on bookings.order_id = fo.order_id
 		
 	WHERE date(bookings.date_local) >= date([[inc_start_date]])
 	    AND date(bookings.date_local) <= DATE([[inc_end_date]])
 	
 	GROUP BY 1,2,3,4,5,6,7,8
+)
+,jobs_metrics as (
+    SELECT 
+        bk.date_local
+        ,ct.city_name
+        ,ct.country_name
+        ,bk.restaurant_id
+        ,CASE WHEN bk.partner=1 THEN 'partner' ELSE 'non-partner' END AS restaurant_partner_status
+        ,CASE WHEN coalesce(json_extract_scalar(bk.grabfood_metadata, '$.orderType'), '0') = '1' THEN 'Integrated' ELSE 'Concierge' END AS business_model
+        ,CASE WHEN LENGTH(bk.payment_type_id)>0 AND bk.payment_type_id IS NOT NULL THEN 'Cashless' ELSE 'Cash' END AS cashless_status
+        ,CASE 
+                WHEN gpc.booking_code IS NOT NULL AND LENGTH(bk.payment_type_id)>0 AND  bk.payment_type_id IS NOT NULL THEN 'GrabPay-GPC'
+                WHEN gpc.booking_code IS NULL AND LENGTH(bk.payment_type_id)>0 AND bk.payment_type_id IS NOT NULL THEN 'GrabPay-Non GPC'
+                WHEN LENGTH(bk.payment_type_id)=0 OR  bk.payment_type_id IS NULL THEN 'Cash'
+        END AS payment_type
+        ,SUM(CASE WHEN cd.state_simple = 'Bid' THEN 1 ELSE 0 END) AS jobs_accepted
+        ,SUM(CASE WHEN cd.state_simple IN ('Bid','Declined','Ignored') THEN 1 ELSE 0 END) AS jobs_received
+        ,SUM(CASE WHEN cd.state_simple = 'Unread' THEN 1 ELSE 0 END) AS jobs_unread
+    FROM public.prejoin_candidate cd 
+    INNER JOIN public.prejoin_grabfood bk 
+        ON cd.booking_code = bk.booking_code
+        
+    LEFT JOIN 
+        (
+        SELECT * FROM slide.datamart_bb_gpc
+        WHERE date(partition_date) >= date([[inc_start_date]]) - INTERVAL '10' DAY
+        AND date(partition_date) <= date([[inc_end_date]]) + INTERVAL '10' DAY
+        ) gpc  
+        
+        ON bk.booking_code = gpc.booking_code
+        
+    INNER JOIN datamart.dim_cities_countries ct 
+        ON cd.city_id = ct.city_id
+        
+    WHERE bk.is_test_booking = FALSE
+        AND date(bk.partition_date) >= date([[inc_start_date]]) - INTERVAL '1' day
+        AND date(bk.partition_date) <= DATE([[inc_end_date]]) + interval '1' DAY
+        AND date(cd.partition_date) >= date([[inc_start_date]]) - INTERVAL '1' day
+        AND date(cd.partition_date) <= DATE([[inc_end_date]]) + interval '1' DAY
+        
+    GROUP BY 1,2,3,4,5,6,7,8
+)
+SELECT 
+    bk_metrics.*,
+coalesce(jobs_metrics.jobs_accepted,0) as jobs_accepted,
+coalesce(jobs_metrics.jobs_received,0) as jobs_received,
+coalesce(jobs_metrics.jobs_unread,0) as jobs_unread,
+bk_metrics.date_local as partition_date_local
 
-) bk_metrics
+FROM bk_metrics
 
-LEFT JOIN
 
-(
-	SELECT 
-	 bk.date_local
-	 ,ct.city_name
-	 ,ct.country_name
-	 ,bk.restaurant_id
-	 ,CASE WHEN bk.partner=1 THEN 'partner' ELSE 'non-partner' END AS restaurant_partner_status
-	 ,CASE WHEN coalesce(json_extract_scalar(bk.grabfood_metadata, '$.orderType'), '0') = '1' THEN 'Integrated' ELSE 'Concierge' END AS business_model
-	 ,CASE WHEN LENGTH(bk.payment_type_id)>0 AND bk.payment_type_id IS NOT NULL THEN 'Cashless' ELSE 'Cash' END AS cashless_status
-	 ,CASE 
-	  		WHEN gpc.booking_code IS NOT NULL AND LENGTH(bk.payment_type_id)>0 AND  bk.payment_type_id IS NOT NULL THEN 'GrabPay-GPC'
-	  		WHEN gpc.booking_code IS NULL AND LENGTH(bk.payment_type_id)>0 AND bk.payment_type_id IS NOT NULL THEN 'GrabPay-Non GPC'
-	  		WHEN LENGTH(bk.payment_type_id)=0 OR  bk.payment_type_id IS NULL THEN 'Cash'
-	   END AS payment_type
-	 ,SUM(CASE WHEN cd.state_simple = 'Bid' THEN 1 ELSE 0 END) AS jobs_accepted
-	 ,SUM(CASE WHEN cd.state_simple IN ('Bid','Declined','Ignored') THEN 1 ELSE 0 END) AS jobs_received
-	 ,SUM(CASE WHEN cd.state_simple = 'Unread' THEN 1 ELSE 0 END) AS jobs_unread
-	 FROM 
-	 public.prejoin_candidate cd 
-	 INNER JOIN public.prejoin_grabfood bk 
-	 ON cd.booking_code = bk.booking_code
-	 
-	 LEFT JOIN 
-	 (
-	  SELECT * FROM slide.datamart_bb_gpc
-	  WHERE date(partition_date) >= date([[inc_start_date]]) - INTERVAL '10' DAY
-	  AND date(partition_date) <= date([[inc_end_date]]) + INTERVAL '10' DAY
-	  ) gpc  
-	  
-	 ON bk.booking_code = gpc.booking_code
-	 
-	 INNER JOIN datamart.dim_cities_countries ct 
-	 ON cd.city_id = ct.city_id
-	 
-	 WHERE 
-	 bk.is_test_booking = FALSE
-	 AND date(bk.partition_date) >= date([[inc_start_date]]) - INTERVAL '1' day
-	 AND date(bk.partition_date) <= DATE([[inc_end_date]]) + interval '1' DAY
-	 AND date(cd.partition_date) >= date([[inc_start_date]]) - INTERVAL '1' day
-	 AND date(cd.partition_date) <= DATE([[inc_end_date]]) + interval '1' DAY
-	 
-	 GROUP BY 1,2,3,4,5,6,7,8
-	 
-) jobs_metrics
-
-ON bk_metrics.date_local = jobs_metrics.date_local
-AND bk_metrics.city_name = jobs_metrics.city_name
-AND bk_metrics.country_name = jobs_metrics.country_name
-AND bk_metrics.merchant_id = jobs_metrics.restaurant_id
-AND bk_metrics.restaurant_partner_status = jobs_metrics.restaurant_partner_status
-AND bk_metrics.business_model = jobs_metrics.business_model
-AND bk_metrics.cashless_status = jobs_metrics.cashless_status
-AND bk_metrics.payment_type = jobs_metrics.payment_type
+LEFT JOIN jobs_metrics
+    ON bk_metrics.date_local = jobs_metrics.date_local
+        AND bk_metrics.city_name = jobs_metrics.city_name
+        AND bk_metrics.country_name = jobs_metrics.country_name
+        AND bk_metrics.merchant_id = jobs_metrics.restaurant_id
+        AND bk_metrics.restaurant_partner_status = jobs_metrics.restaurant_partner_status
+        AND bk_metrics.business_model = jobs_metrics.business_model
+        AND bk_metrics.cashless_status = jobs_metrics.cashless_status
+        AND bk_metrics.payment_type = jobs_metrics.payment_type

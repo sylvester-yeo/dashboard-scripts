@@ -1,4 +1,4 @@
-SELECT 
+omSELECT 
 bk_metrics.*,
 coalesce(jobs_metrics.jobs_accepted,0) as jobs_accepted,
 coalesce(jobs_metrics.jobs_received,0) as jobs_received,

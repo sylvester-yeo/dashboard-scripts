@@ -1,3 +1,11 @@
+/*
+    Name: slide.gf_dash_mex_join_date
+    Refresh Time: Daily, 21:00 UTC
+    Aggregation Mode: Overwrite
+	Increment window: 45 days
+    Lighthouse Dependancy Tables: NIL
+*/
+
 SELECT 
 merchant_id,
 country_name,
