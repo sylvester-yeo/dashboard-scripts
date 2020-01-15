@@ -15,6 +15,7 @@ select
     ,date_local
     ,case when order_type = 1 then 'Integrated' else 'Concierge' end as business_model
     ,case when is_cashless_booking then 'Cashless' else 'Cash' end as cashless_status
+    ,case when is_partner then 'Partner' else 'Non-Partner' end as partner_status
     ,count(1) as no_of_mfp_orders
     ,sum(total_promo_spend) as total_mfp_mex_grab_spend_local
     ,sum(total_promo_spend/exchange_one_usd) as total_mfp_mex_grab_spend_usd
@@ -22,8 +23,6 @@ select
     ,sum(mex_promo_spend/exchange_one_usd) as mex_mfp_spend_usd
     ,date_local as partition_date_local
 from slide.mfp_orders
-/*where date(partition_date) >= date([[inc_start_date]]) - interval '1' day
-    and date(partition_date) <= date([[inc_end_date]]) + interval '1' day
-    and date(date_local) >= date([[inc_start_date]])
-    and date(date_local) <= date([[inc_end_date]])*/
-group by 1,2,3,4,5,6,7,13
+where date(date_local) >= date([[inc_start_date]])
+    and date(date_local) <= date([[inc_end_date]])
+group by 1,2,3,4,5,6,7,8,14

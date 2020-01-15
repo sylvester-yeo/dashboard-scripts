@@ -457,6 +457,18 @@ with fo as (
 	       ELSE 0.0 
 	       END) AS takeaway_time_from_order_create_to_completed
 
+    ,SUM(CASE
+            WHEN bookings.booking_state_simple = 'COMPLETED' THEN 
+            bookings.tips
+            ELSE 0.0
+            END) as tips_local
+
+    ,SUM(CASE
+            WHEN bookings.booking_state_simple = 'COMPLETED' THEN 
+            bookings.tips/fx_one_usd
+            ELSE 0.0
+            END) as tips_usd
+
     /*============scheduled orders============*/
 	,sum(case 
         when is_advance = 1

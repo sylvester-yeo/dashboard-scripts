@@ -3,7 +3,7 @@
     Refresh Time: Daily, 21:00 UTC
     Aggregation Mode: Incremental, lookback window 20 days
     Lighthouse Dependancy Tables:
-        slide.gf_daily_city_base_metrics_agg_v2 21:00
+        slide.gf_daily_city_base_metrics_agg 21:00
 */
 
 WITH latest_booking_past_5weeks AS
@@ -87,11 +87,12 @@ WHERE (unique_bookings_gf>0 OR completed_orders_gf>0 )
 from
 (SELECT
     time_period AS week_of
-	FROM slide.gf_daily_city_base_metrics_agg_v2
+	FROM slide.gf_daily_city_base_metrics_agg
 	WHERE by_city_country='By Region'
 	AND by_day_week_month = 'By Week'
        AND business_model = 'All'
        And cashless_status = 'All'
+	   and partner_status = 'All'
 	AND time_period >= date_trunc('week',date([[inc_start_date]]))
     AND time_period <= DATE([[inc_end_date]])
     GROUP BY 1

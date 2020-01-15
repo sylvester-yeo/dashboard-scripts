@@ -3,7 +3,7 @@
   Refresh Time: Daily, 21:00 UTC
   Aggregation Mode: Overwrite
   Lighthouse dependency Tables:
-    slide.gf_mex_level_daily_metrics_temp 21:00
+    slide.gf_mex_level_daily_metrics 21:00
     
 */
 
@@ -211,7 +211,7 @@ with mex_con as (
     ,sum(a.takeaway_sub_total_local) as takeaway_sub_total_local
     ,sum(a.takeaway_time_from_order_create_to_completed) as takeaway_time_from_order_create_to_completed
   FROM 
-    slide.gf_mex_level_daily_metrics_temp a
+    slide.gf_mex_level_daily_metrics a
   LEFT JOIN mex_snapshots b
     on a.merchant_id = b.merchant_id
     AND date(a.date_local) = b.date_mex_snapshots
@@ -256,7 +256,7 @@ with mex_con as (
         ,date_local
         ,sum(mex_mfp_spend_usd) as mex_mfp_spend_usd
         ,sum(mex_mfp_spend_local) as mex_mfp_spend_local
-    from slide.gf_mfp_merchant_daily
+    from slide.gf_mfp_merchant
     where date_trunc('month', date(partition_date_local)) >= date_trunc('month', current_date) - interval '3' month
         and country = 'Indonesia'
     group by 1,2,3
@@ -353,7 +353,7 @@ with mex_con as (
       --,sum(mfc.partner_promo_item_normal_price_local_non_mfc - mfc.partner_promo_item_promo_price_local_non_mfc) as partner_promo_item_price_diff_local_non_mfc
       ,sum(mfc.partner_promo_item_n_normal_price_usd_non_mfc - mfc.partner_promo_item_n_promo_price_usd_non_mfc) as partner_promo_item_price_diff_n_usd_non_mfc
       ,sum(mfc.partner_promo_item_n_normal_price_local_non_mfc - mfc.partner_promo_item_n_promo_price_local_non_mfc) as partner_promo_item_price_diff_n_local_non_mfc
-    from slide.gf_mfc_brand_daily mfc
+    from slide.gf_mfc_brand mfc
     where date_trunc('month', date(mfc.date_local)) >= date_trunc('month', current_date) - interval '2' month
     group by 1,2,3,4
 )

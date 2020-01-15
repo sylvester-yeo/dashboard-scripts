@@ -45,7 +45,10 @@ FROM
 				ELSE cashless_status
 			END AS cashless_status	
 
-             
+            ,case 
+                when restaurant_partner_status is null then 'All'
+                else restaurant_partner_status
+            end as partner_status
 			
 			,sum(gmv_usd_gf) as gmv_gf
 			,sum(CASE WHEN restaurant_partner_status = 'partner' THEN gmv_usd_gf ELSE 0 END) as partner_gmv_usd
@@ -120,9 +123,11 @@ FROM
 			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)) as incentive_payout_usd
 			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)) AS incentive_payout_local
 			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)+coalesce(dax_delivery_fare,0)-coalesce(delivery_fare_gf,0)) as incentive_payout_usd_w_tsp
-			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)+coalesce(dax_delivery_fare_local,0)-coalesce(delivery_fare_gf_local,0)) AS incentive_payout_local_w_tsp		
+			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)+coalesce(dax_delivery_fare_local,0)-coalesce(delivery_fare_gf_local,0)) AS incentive_payout_local_w_tsp
+			,sum(tips_local) as tips_local
+			,sum(tips_usd) as tips_usd
 
-            --takeaway metrics
+            /*takeaway orders */
             ,sum(total_takeaway_orders) as total_takeaway_orders
             ,sum(total_takeaway_completed_orders) as total_takeaway_completed_orders
             ,sum(takeaway_gmv_local) as takeaway_gmv_local
@@ -137,20 +142,20 @@ FROM
             ,sum(takeaway_sub_total_local) as takeaway_sub_total_local
             ,sum(takeaway_time_from_order_create_to_completed) as takeaway_time_from_order_create_to_completed
 
-            ,sum(total_scheduled_orders) as total_scheduled_orders
-            ,sum(total_scheduled_completed_orders) as total_scheduled_completed_orders
-            ,sum(scheduled_gmv_local) as scheduled_gmv_local
-            ,sum(scheduled_gmv_usd) as scheduled_gmv_usd
-            ,sum(scheduled_mex_commission) as scheduled_mex_commission
-            ,sum(scheduled_mex_commission_local) as scheduled_mex_commission_local
-            ,sum(scheduled_base_for_mex_commission_local) as scheduled_base_for_mex_commission_local
-            ,sum(scheduled_base_for_mex_commission) as scheduled_base_for_mex_commission
-            ,sum(scheduled_basket_size_usd) as scheduled_basket_size_usd
-            ,sum(scheduled_basket_size_local) as scheduled_basket_size_local
-            ,sum(scheduled_sub_total_usd) as scheduled_sub_total_usd
-            ,sum(scheduled_sub_total_local) as scheduled_sub_total_local
-            ,sum(scheduled_total_date_diff) as scheduled_total_date_diff
-
+			/*scheduled orders*/
+			,sum(total_scheduled_orders) as total_scheduled_orders
+			,sum(total_scheduled_completed_orders) as total_scheduled_completed_orders
+			,sum(scheduled_gmv_local) as scheduled_gmv_local
+			,sum(scheduled_gmv_usd) as scheduled_gmv_usd
+			,sum(scheduled_mex_commission) as scheduled_mex_commission
+			,sum(scheduled_mex_commission_local) as scheduled_mex_commission_local
+			,sum(scheduled_base_for_mex_commission_local) as scheduled_base_for_mex_commission_local
+			,sum(scheduled_base_for_mex_commission) as scheduled_base_for_mex_commission
+			,sum(scheduled_basket_size_usd) as scheduled_basket_size_usd
+			,sum(scheduled_basket_size_local) as scheduled_basket_size_local
+			,sum(scheduled_sub_total_usd) as scheduled_sub_total_usd
+			,sum(scheduled_sub_total_local) as scheduled_sub_total_local
+			,sum(scheduled_total_date_diff) as scheduled_total_date_diff
 
 			FROM 
 			(
@@ -159,7 +164,7 @@ FROM
 				date_trunc('month',date_local) AS month_of,	
 				*
 				FROM
-				slide.gf_mex_level_daily_metrics
+				slide.gf_mex_level_daily_metrics			
 				WHERE partition_date_local >= date_trunc('month',date([[inc_start_date]])) - INTERVAL '1' MONTH
 				AND partition_date_local <= date([[inc_end_date]])
 			)

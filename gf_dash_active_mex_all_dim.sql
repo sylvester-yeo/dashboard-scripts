@@ -572,7 +572,7 @@ FROM
 				 business_model,
 				 completed_orders_gf
 		
-				FROM slide.gf_mex_level_daily_metrics_temp
+				FROM slide.gf_mex_level_daily_metrics
 				WHERE 
 				completed_orders_gf>0
 				AND date_local >= date_trunc('month',date([[inc_start_date]])) - INTERVAL '10' DAY  /**-10 days in case week start < month start **/
