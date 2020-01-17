@@ -44,6 +44,11 @@ FROM
 				WHEN cashless_status IS NULL THEN 'All'
 				ELSE cashless_status
 			END AS cashless_status	
+
+            ,case 
+                when restaurant_partner_status is null then 'All'
+                else restaurant_partner_status
+            end as partner_status
 			
 			,sum(gmv_usd_gf) as gmv_gf
 			,sum(CASE WHEN restaurant_partner_status = 'partner' THEN gmv_usd_gf ELSE 0 END) as partner_gmv_usd
@@ -61,6 +66,10 @@ FROM
 			,SUM(CASE WHEN restaurant_partner_status = 'partner' THEN basket_size_local ELSE 0 END) AS partner_basket_size_local
 			,sum(mex_commission) as partner_commission
 			,SUM(mex_commission_local) AS partner_commission_local
+            ,SUM(base_for_mex_commission) as base_for_mex_commission
+			,SUM(CASE WHEN restaurant_partner_status = 'partner' THEN base_for_mex_commission ELSE 0 END) AS partner_base_for_mex_commission
+            ,SUM(base_for_mex_commission_local) as base_for_mex_commission_local
+			,SUM(CASE WHEN restaurant_partner_status = 'partner' THEN base_for_mex_commission_local ELSE 0 END) AS partner_base_for_mex_commission_local
 			,sum(driver_commission) as driver_commission
 			,SUM(driver_commission_local) AS driver_commission_local
 			,sum(delivery_fare_gf) as delivery_fare_gf
@@ -102,21 +111,51 @@ FROM
 			,sum(effective_first_allocated_orders) as effective_first_allocated_orders
 			
 			,sum(promo_expense) as promo_expense
+			,sum(promo_expense_local) as promo_expense_local
+			,sum(promo_code_expense) as promo_code_expense
+			,sum(promo_code_expense_local) as promo_code_expense_local
 			,sum(promo_incoming_orders) as promo_incoming_orders
 			,sum(promo_completed_orders) as promo_completed_orders
-			,sum(promo_expense_local) as promo_expense_local
-			
-			,sum(num_of_total_items) as num_of_total_items
-			,sum(total_item_price_usd) as total_item_price_usd
-			,sum(completed_orders_gf_item) as completed_orders_gf_item
+
 			,sum(jobs_accepted) as jobs_bid
 			,sum(jobs_received) as jobs_received
 			,sum(jobs_unread) as jobs_unread
 			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)) as incentive_payout_usd
 			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)) AS incentive_payout_local
 			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)+coalesce(dax_delivery_fare,0)-coalesce(delivery_fare_gf,0)) as incentive_payout_usd_w_tsp
-			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)+coalesce(dax_delivery_fare_local,0)-coalesce(delivery_fare_gf_local,0)) AS incentive_payout_local_w_tsp		
+			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)+coalesce(dax_delivery_fare_local,0)-coalesce(delivery_fare_gf_local,0)) AS incentive_payout_local_w_tsp
+			,sum(tips_local) as tips_local
+			,sum(tips_usd) as tips_usd
 
+            /*takeaway orders */
+            ,sum(total_takeaway_orders) as total_takeaway_orders
+            ,sum(total_takeaway_completed_orders) as total_takeaway_completed_orders
+            ,sum(takeaway_gmv_local) as takeaway_gmv_local
+            ,sum(takeaway_gmv_usd) as takeaway_gmv_usd
+            ,sum(takeaway_mex_commission_local) as takeaway_mex_commission_local
+            ,sum(takeaway_mex_commission_usd) as takeaway_mex_commission_usd
+            ,sum(takeaway_base_for_mex_commission_local) as takeaway_base_for_mex_commission_local
+            ,sum(takeaway_base_for_mex_commission) as takeaway_base_for_mex_commission
+            ,sum(takeaway_basket_size_usd) as takeaway_basket_size_usd
+            ,sum(takeaway_basket_size_local) as takeaway_basket_size_local
+            ,sum(takeaway_sub_total_usd) as takeaway_sub_total_usd
+            ,sum(takeaway_sub_total_local) as takeaway_sub_total_local
+            ,sum(takeaway_time_from_order_create_to_completed) as takeaway_time_from_order_create_to_completed
+
+			/*scheduled orders*/
+			,sum(total_scheduled_orders) as total_scheduled_orders
+			,sum(total_scheduled_completed_orders) as total_scheduled_completed_orders
+			,sum(scheduled_gmv_local) as scheduled_gmv_local
+			,sum(scheduled_gmv_usd) as scheduled_gmv_usd
+			,sum(scheduled_mex_commission) as scheduled_mex_commission
+			,sum(scheduled_mex_commission_local) as scheduled_mex_commission_local
+			,sum(scheduled_base_for_mex_commission_local) as scheduled_base_for_mex_commission_local
+			,sum(scheduled_base_for_mex_commission) as scheduled_base_for_mex_commission
+			,sum(scheduled_basket_size_usd) as scheduled_basket_size_usd
+			,sum(scheduled_basket_size_local) as scheduled_basket_size_local
+			,sum(scheduled_sub_total_usd) as scheduled_sub_total_usd
+			,sum(scheduled_sub_total_local) as scheduled_sub_total_local
+			,sum(scheduled_total_date_diff) as scheduled_total_date_diff
 
 			FROM 
 			(
@@ -135,20 +174,29 @@ FROM
 			(
 				(date_local,country_name),(week_of,country_name),(month_of,country_name),
 				(date_local,country_name,business_model),(week_of,country_name,business_model),(month_of,country_name,business_model),
+				(date_local,country_name,restaurant_partner_status),(week_of,country_name,restaurant_partner_status),(month_of,country_name,restaurant_partner_status),
+				(date_local,country_name,business_model,restaurant_partner_status),(week_of,country_name,business_model,restaurant_partner_status),(month_of,country_name,business_model,restaurant_partner_status),
 				(date_local,country_name,cashless_status),(week_of,country_name,cashless_status),(month_of,country_name,cashless_status),
 				(date_local,country_name,business_model,cashless_status),(week_of,country_name,business_model,cashless_status),(month_of,country_name,business_model,cashless_status),
+				(date_local,country_name,business_model,cashless_status,restaurant_partner_status),(week_of,country_name,business_model,cashless_status,restaurant_partner_status),(month_of,country_name,business_model,cashless_status,restaurant_partner_status),
 				
 				
 				(date_local,country_name,city_name),(week_of,country_name,city_name),(month_of,country_name,city_name),
 				(date_local,country_name,city_name,business_model),(week_of,country_name,city_name,business_model),(month_of,country_name,city_name,business_model),
+				(date_local,country_name,city_name,restaurant_partner_status),(week_of,country_name,city_name,restaurant_partner_status),(month_of,country_name,city_name,restaurant_partner_status),
 				(date_local,country_name,city_name,cashless_status),(week_of,country_name,city_name,cashless_status),(month_of,country_name,city_name,cashless_status),
 				(date_local,country_name,city_name,business_model,cashless_status),(week_of,country_name,city_name,business_model,cashless_status),(month_of,country_name,city_name,business_model,cashless_status),
+				(date_local,country_name,city_name,business_model,cashless_status,restaurant_partner_status),(week_of,country_name,city_name,business_model,cashless_status,restaurant_partner_status),(month_of,country_name,city_name,business_model,cashless_status,restaurant_partner_status),
+				(date_local,country_name,city_name,business_model,restaurant_partner_status),(week_of,country_name,city_name,business_model,restaurant_partner_status),(month_of,country_name,city_name,business_model,restaurant_partner_status),
 				
 				
 				(date_local),(week_of),(month_of),
 				(date_local,business_model),(week_of,business_model),(month_of,business_model),
+				(date_local,restaurant_partner_status),(week_of,restaurant_partner_status),(month_of,restaurant_partner_status),
 				(date_local,cashless_status),(week_of,cashless_status),(month_of,cashless_status),	
-				(date_local,business_model,cashless_status),(week_of,business_model,cashless_status),(month_of,business_model,cashless_status)				
+				(date_local,business_model,cashless_status),(week_of,business_model,cashless_status),(month_of,business_model,cashless_status),				
+				(date_local,business_model,cashless_status,restaurant_partner_status),(week_of,business_model,cashless_status,restaurant_partner_status),(month_of,business_model,cashless_status,restaurant_partner_status),				
+				(date_local,business_model,restaurant_partner_status),(week_of,business_model,restaurant_partner_status),(month_of,business_model,restaurant_partner_status)				
 			)
 		 ) 
 	

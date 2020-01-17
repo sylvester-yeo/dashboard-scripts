@@ -1,5 +1,3 @@
-/*Non-refreshed 2019 BD data before re-tagging exercise from BD team */
-
 with mex_con as (
   select *
   from
@@ -202,7 +200,7 @@ with mex_con as (
     ,sum(case when a.business_model = 'Integrated' then a.basket_size_local else 0 end) as im_basket_size_local
 
   FROM
-    slide.gf_mex_level_daily_metrics_temp a
+    slide.gf_mex_level_daily_metrics a
   LEFT JOIN mex_snapshots b
     on a.merchant_id = b.merchant_id
     AND date(a.date_local) = b.date_mex_snapshots
@@ -221,45 +219,22 @@ with mex_con as (
     GROUP BY 1,2,3,4
 )
 ,mf_promo_code_per_outlet as (
-    select * from (
-        select 
-            biz_outlet.business_name,
-            biz_outlet.country_name,
-            biz_outlet.city_name,
-            biz_outlet.date_local,
-            sum(mf_promo_code.mex_funding_amount_perday_local/cast(active_outlet AS double)) AS mf_promo_code_perday_outlet_local,
-            sum(mf_promo_code.mex_funding_amount_perday_usd/cast(active_outlet AS double)) AS mf_promo_code_perday_outlet_usd
-        FROM
-            slide.mex_funded_promo_code_by_brand_cg mf_promo_code
-        inner join biz_outlet
-        ON lower(trim(biz_outlet.business_name)) = lower(trim(mf_promo_code.business_name))
-            AND biz_outlet.city_name = mf_promo_code.city
-            AND biz_outlet.country_name = mf_promo_code.country
-            AND biz_outlet.date_local = mf_promo_code.date_local
-        where date(mf_promo_code.date_local) < date('2019-07-01') and biz_outlet.date_local < date('2019-07-01')
-        group by 1,2,3,4
-    ) /*union all (
-        select 
-            biz_outlet.business_name
-            ,biz_outlet.country_name
-            ,biz_outlet.city_name
-            ,biz_outlet.date_local
-            ,sum(mfp.mex_funding_amount_perday_local/cast(active_outlet AS double)) AS mf_promo_code_perday_outlet_local
-            ,sum(mfp.mex_funding_amount_perday_usd/cast(active_outlet AS double)) AS mf_promo_code_perday_outlet_usd
-        from 
-            slide.gf_mfp_campaign_daily mfp
-        inner join biz_outlet
-        ON lower(trim(biz_outlet.business_name)) = lower(trim(mfp.business_name))
-            AND biz_outlet.city_name = mfp.city
-            AND biz_outlet.country_name = mfp.country
-            AND biz_outlet.date_local = date(mfp.date_local)
-        where 
-            date(mfp.date_local) >= date('2019-07-01')
-            --and date_trunc('month', date(mfp.date_local)) >= date_trunc('month', current_date) - interval '3' month
-            and biz_outlet.date_local >= date('2019-07-01')
-            --and date_trunc('month', date(biz_outlet.date_local)) >= date_trunc('month', current_date) - interval '3' month
-        group by 1,2,3,4*/
-    --)
+  select 
+      biz_outlet.business_name,
+      biz_outlet.country_name,
+      biz_outlet.city_name,
+      biz_outlet.date_local,
+      sum(mf_promo_code.mex_funding_amount_perday_local/cast(active_outlet AS double)) AS mf_promo_code_perday_outlet_local,
+      sum(mf_promo_code.mex_funding_amount_perday_usd/cast(active_outlet AS double)) AS mf_promo_code_perday_outlet_usd
+  FROM
+      slide.mex_funded_promo_code_by_brand_cg mf_promo_code
+  inner join biz_outlet
+  ON lower(trim(biz_outlet.business_name)) = lower(trim(mf_promo_code.business_name))
+      AND biz_outlet.city_name = mf_promo_code.city
+      AND biz_outlet.country_name = mf_promo_code.country
+      AND biz_outlet.date_local = mf_promo_code.date_local
+  where date(mf_promo_code.date_local) < date('2019-07-01') and biz_outlet.date_local < date('2019-07-01')
+  group by 1,2,3,4
 )
 ,mfc as (
     select 
@@ -327,7 +302,7 @@ with mex_con as (
         --,sum(mfc.partner_promo_item_normal_price_local_non_mfc - mfc.partner_promo_item_promo_price_local_non_mfc) as partner_promo_item_price_diff_local_non_mfc
         ,sum(mfc.partner_promo_item_n_normal_price_usd_non_mfc - mfc.partner_promo_item_n_promo_price_usd_non_mfc) as partner_promo_item_price_diff_n_usd_non_mfc
         ,sum(mfc.partner_promo_item_n_normal_price_local_non_mfc - mfc.partner_promo_item_n_promo_price_local_non_mfc) as partner_promo_item_price_diff_n_local_non_mfc
-    from slide.gf_mfc_brand_daily mfc
+    from slide.gf_mfc_brand mfc
     where date_local >= date('2019-01-01')
         and date_local < date('2020-01-01')
     group by 1,2,3,4
@@ -339,7 +314,7 @@ with mex_con as (
         ,date_local
         ,sum(mex_mfp_spend_usd) as mex_mfp_spend_usd
         ,sum(mex_mfp_spend_local) as mex_mfp_spend_local
-    from slide.gf_mfp_merchant_daily
+    from slide.gf_mfp_merchant
     group by 1,2,3
 )
 SELECT

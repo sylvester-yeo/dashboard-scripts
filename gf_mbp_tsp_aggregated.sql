@@ -1,5 +1,5 @@
 /*
-    Name: slide.gf_dash_mbp_tsp
+    Name: slide.gf_mbp_tsp_aggregated
     Refresh Time: Daily, 21:00 UTC
     Aggregation Mode: Incremental, 10 days windows
     Lighthouse Dependancy Tables:
@@ -14,6 +14,7 @@ with daily as (
     ,state
     ,a.cashless_status
     ,a.business_model
+    ,a.partner_status
     ,sum(mbp_paid_by_mex) as mbp_paid_by_mex_local
     ,sum(mbp_paid_by_pax) as mbp_paid_by_pax_local
     ,sum(tsp_paid_by_us) as tsp_paid_by_us_local
@@ -33,7 +34,8 @@ with daily as (
         order_id,
         fx_one_usd,
         CASE WHEN is_grabpay=1 THEN 'Cashless' ELSE 'Cash' END AS cashless_status,
-        CASE WHEN is_integrated_model = 1 THEN 'Integrated' ELSE 'Concierge' END AS business_model
+        CASE WHEN is_integrated_model = 1 THEN 'Integrated' ELSE 'Concierge' END AS business_model,
+        case when is_partner_merchant = 1 then 'Partner' else 'Non-Partner' end as partner_status
     FROM datamart_grabfood.base_bookings
     WHERE date_trunc('month', date(date_local)) >= date_add('month', -1, date_trunc('month',date([[inc_start_date]])))
         and date_trunc('month', date(date_local)) < date_add('month', 1, date_trunc('month',date([[inc_end_date]])))
@@ -44,7 +46,7 @@ with daily as (
     mbp.state = 'COMPLETED'
         and date_trunc('month', date(mbp.date_local)) >= date_add('month', -1, date_trunc('month',date([[inc_start_date]])))
         and date_trunc('month', date(mbp.date_local)) < date_add('month', 1, date_trunc('month',date([[inc_end_date]])))
-  GROUP BY 1,2,3,4,5,6,7,8
+  GROUP BY 1,2,3,4,5,6,7,8,9
 )
 SELECT * FROM (
 SELECT
@@ -77,6 +79,12 @@ SELECT
         WHEN cashless_status IS NULL THEN 'All'
         ELSE cashless_status
     END AS cashless_status
+
+    ,case
+        when partner_status is null then 'All'
+        else partner_status
+    end as partner_status 
+
     ,sum(mbp_paid_by_mex_local) as mbp_paid_by_mex_local
     ,sum(mbp_paid_by_pax_local) as mbp_paid_by_pax_local
     ,sum(tsp_paid_by_us_local) as tsp_paid_by_us_local
@@ -89,20 +97,29 @@ GROUP by grouping sets
 (
     (date_local,country_name),(week_of,country_name),(month_of,country_name),
     (date_local,country_name,business_model),(week_of,country_name,business_model),(month_of,country_name,business_model),
+    (date_local,country_name,partner_status),(week_of,country_name,partner_status),(month_of,country_name,partner_status),
+    (date_local,country_name,business_model,partner_status),(week_of,country_name,business_model,partner_status),(month_of,country_name,business_model,partner_status),
     (date_local,country_name,cashless_status),(week_of,country_name,cashless_status),(month_of,country_name,cashless_status),
     (date_local,country_name,business_model,cashless_status),(week_of,country_name,business_model,cashless_status),(month_of,country_name,business_model,cashless_status),
-
-
+    (date_local,country_name,business_model,cashless_status,partner_status),(week_of,country_name,business_model,cashless_status,partner_status),(month_of,country_name,business_model,cashless_status,partner_status),
+    
+    
     (date_local,country_name,city_name),(week_of,country_name,city_name),(month_of,country_name,city_name),
     (date_local,country_name,city_name,business_model),(week_of,country_name,city_name,business_model),(month_of,country_name,city_name,business_model),
+    (date_local,country_name,city_name,partner_status),(week_of,country_name,city_name,partner_status),(month_of,country_name,city_name,partner_status),
     (date_local,country_name,city_name,cashless_status),(week_of,country_name,city_name,cashless_status),(month_of,country_name,city_name,cashless_status),
     (date_local,country_name,city_name,business_model,cashless_status),(week_of,country_name,city_name,business_model,cashless_status),(month_of,country_name,city_name,business_model,cashless_status),
-
-
+    (date_local,country_name,city_name,business_model,cashless_status,partner_status),(week_of,country_name,city_name,business_model,cashless_status,partner_status),(month_of,country_name,city_name,business_model,cashless_status,partner_status),
+    (date_local,country_name,city_name,business_model,partner_status),(week_of,country_name,city_name,business_model,partner_status),(month_of,country_name,city_name,business_model,partner_status),
+    
+    
     (date_local),(week_of),(month_of),
     (date_local,business_model),(week_of,business_model),(month_of,business_model),
-    (date_local,cashless_status),(week_of,cashless_status),(month_of,cashless_status),
-    (date_local,business_model,cashless_status),(week_of,business_model,cashless_status),(month_of,business_model,cashless_status)
+    (date_local,partner_status),(week_of,partner_status),(month_of,partner_status),
+    (date_local,cashless_status),(week_of,cashless_status),(month_of,cashless_status),	
+    (date_local,business_model,cashless_status),(week_of,business_model,cashless_status),(month_of,business_model,cashless_status),				
+    (date_local,business_model,cashless_status,partner_status),(week_of,business_model,cashless_status,partner_status),(month_of,business_model,cashless_status,partner_status),				
+    (date_local,business_model,partner_status),(week_of,business_model,partner_status),(month_of,business_model,partner_status)
 )
 )
 WHERE 

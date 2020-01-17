@@ -1,5 +1,5 @@
 /*
-    Name: slide.gf_mfp_merchant_daily
+    Name: slide.gf_mfp_merchant
     Refresh Time: Daily, 21:00 UTC
     Aggregation Mode: Overwrite
     Lighthouse Dependancy Tables:
