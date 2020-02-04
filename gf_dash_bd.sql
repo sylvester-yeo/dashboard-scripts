@@ -349,6 +349,18 @@ with mex_con as (
     from slide.gf_mfp_merchant
     group by 1,2,3
 )
+,ads as (
+  select 
+    indiv_mex as merchant_id
+    ,city_name
+    ,date_local
+    ,sum(avg_ad_spend) as ad_spend_local
+    ,sum(avg_ad_spend_usd) as ad_spend_usd
+  from slide.gf_ads_mex_daily
+  where partition_date >= date('2019-04-01')
+    and indiv_mex is not null
+  group by 1,2,3
+)
 SELECT
     activation_date
     -- ,date_signed
@@ -524,6 +536,9 @@ SELECT
 
     ,SUM(mf_promo_code_perday_outlet_local) AS mf_promo_code_perday_outlet_local
     ,SUM(mf_promo_code_perday_outlet_usd) AS mf_promo_code_perday_outlet_usd
+
+    ,sum(ad_spend_usd) as ad_spend_usd
+    ,sum(ad_spend_local) as ad_spend_local
     
 FROM(
     SELECT
@@ -606,6 +621,8 @@ FROM(
         AS mf_promo_code_perday_outlet_usd
         -- ,COALESCE(mf_promo_code_perday_outlet_usd,0) AS mf_promo_code_perday_outlet_usd
         
+        ,ads.ad_spend_local
+        ,ads.ad_spend_usd
     FROM
       orders
 
@@ -624,5 +641,10 @@ FROM(
         on mfp.merchant_id = orders.merchant_id 
         and orders.city_name = mfp.city
         and date(orders.date_local) = date(mfp.date_local)
+    
+    LEFT JOIN ads 
+      on orders.merchant_id = ads.merchant_id
+      and orders.city_name = ads.city_name
+      and date(orders.date_local) = date(ads.date_local)
     )
 group by 1,2,3,4,5,6,7,8,9

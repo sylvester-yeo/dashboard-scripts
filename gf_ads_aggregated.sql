@@ -8,8 +8,9 @@ with base as (
         ,sum(coalesce(avg_ad_spend,0))/avg(exchange_one_usd) as ad_spend_usd
         ,sum(coalesce(avg_ad_spend,0)) as ad_spend_local
     from slide.gf_ads_mex_daily
-    where partition_date >= date_trunc('month', date([[inc_start_date]])) - interval '1' month
-        and partition_date >= date_trunc('month', date([[inc_end_date]]) + interval '1' month)
+    /*where partition_date >= date_trunc('month', date([[inc_start_date]])) - interval '1' month
+        and partition_date >= date_trunc('month', date([[inc_end_date]]) + interval '1' month)*/
+    where country_name is not null
     group by 1,2,3,4,5
 )
 select 
@@ -59,11 +60,3 @@ GROUP BY GROUPING SETS
         (date_local),(week_of),(month_of)
         
     )
-WHERE 
-time_period >= (CASE 
-	WHEN by_day_week_month = 'By Day' THEN date([[inc_start_date]])
-	WHEN by_day_week_month = 'By Week' THEN date_trunc('week',date([[inc_start_date]]))
-	WHEN by_day_week_month = 'By Month' THEN date_trunc('month',date([[inc_start_date]]))
- END)
-
-
