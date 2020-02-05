@@ -10,6 +10,9 @@ with mex_funding_table_combined as (
     ,partner_status
     ,sum(mex_mfp_spend_local) as mex_funding_amount_perday_local
     ,sum(mex_mfp_spend_usd) as mex_funding_amount_perday_usd
+
+    ,sum(mex_promo_spend_non_mfp_local) as mex_promo_spend_non_mfp_local
+    ,sum(mex_promo_spend_non_mfp_usd) as mex_promo_spend_non_mfp_usd
    from slide.gf_mfp_merchant
     where date(date_local) >= date('2019-07-01')
     and country is not null
@@ -63,6 +66,9 @@ SELECT
     ,sum(mex_funding_amount_perday_local) AS mex_funding_amount_perday_local
     ,sum(mex_funding_amount_perday_usd) AS mex_funding_amount_perday_usd
 
+    ,sum(mex_promo_spend_non_mfp_local) as mex_promo_spend_non_mfp_local
+    ,sum(mex_promo_spend_non_mfp_usd) as mex_promo_spend_non_mfp_usd
+
 FROM mex_funding_table_combined
 
 GROUP BY GROUPING SETS
@@ -107,5 +113,7 @@ UNION ALL
         ,'All' as partner_status
         ,mex_funding_amount_perday_local
         ,mex_funding_amount_perday_usd
+        ,null as mex_promo_spend_non_mfp_local
+        ,null as mex_promo_spend_non_mfp_usd
     FROM slide.gf_mfp_redemption_aggregated_pre_july_2019
 )
