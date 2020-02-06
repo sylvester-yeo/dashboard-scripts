@@ -257,7 +257,7 @@ with mex_con as (
         ,sum(mex_mfp_spend_usd) as mex_mfp_spend_usd
         ,sum(mex_mfp_spend_local) as mex_mfp_spend_local
     from slide.gf_mfp_merchant
-    where date_trunc('month', date(partition_date_local)) >= date_trunc('month', current_date) - interval '3' month
+    where date_trunc('month', date(date_local)) >= date_trunc('month', current_date) - interval '3' month
         and country = 'Indonesia'
     group by 1,2,3
 )
