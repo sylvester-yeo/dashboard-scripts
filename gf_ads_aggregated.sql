@@ -5,8 +5,8 @@ with base as (
         ,date_local
         ,date_trunc('week',date(date_local)) as week_of
         ,date_trunc('month',date(date_local)) as month_of
-        ,sum(coalesce(avg_ad_spend,0))/avg(exchange_one_usd) as ad_spend_usd
-        ,sum(coalesce(avg_ad_spend,0)) as ad_spend_local
+        ,sum(coalesce(avg_ad_spend_usd,0)) as ad_spend_usd
+        ,sum(coalesce(avg_ad_spend_local,0)) as ad_spend_local
     from slide.gf_ads_mex_daily
     /*where partition_date >= date_trunc('month', date([[inc_start_date]])) - interval '1' month
         and partition_date >= date_trunc('month', date([[inc_end_date]]) + interval '1' month)*/
