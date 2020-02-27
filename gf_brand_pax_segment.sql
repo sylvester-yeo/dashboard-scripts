@@ -8,7 +8,9 @@ with first_brand_order_label as (
     from slide.grabfood_pax_mex_state aa 
     where date_trunc('week', date(aa.pax_first_gf_order_date_by_chain)) = date_trunc('week', date([[inc_start_date]]))
     --   and aa.mex_country_id = 4
-      group by 1,2,3,4
+        and date(aa.date_local) >= date([[inc_start_date]]) - interval '14' day
+        and date(aa.date_local) <= date([[inc_start_date]]) + interval '7' day
+        group by 1,2,3,4
 )
 ,base_bookings as (
     select 
