@@ -6,19 +6,25 @@ with fo as (
         ,case when json_extract_scalar(CAST(json_extract(fo.snapshot_detail, '$.cartWithQuote.merchantCartWithQuoteList') AS ARRAY(json))[1], '$.merchantInfoObj.specialMerchantType') in ('GRABKITCHENMIXMATCH') then TRUE else FALSE end as is_grabkitchen_mixmatch
         ,json_extract(CAST(json_extract(fo.snapshot_detail, '$.cartWithQuote.merchantCartWithQuoteList') AS ARRAY(json))[1], '$.subMerchants') as mixmatch_sub_merchants
         ,cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.merchantCartWithQuoteList[0].merchantInfoObj.commission') as double) as comms_rate
-        ,cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommissionPreVAT') as double) / power(double '10.0', coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int),0))  as comms_pre_vat
+        ,cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommissionPreVAT') as double) / power(double '10.0', coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int),0)) comms_pre_vat
+        ,(case 
+            when cities.country_id in (1,2) then cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommission') as double) --(MY,PH)
+            when cities.country_id in (3,4) then cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommission') as double)/1.07 --(TH, SG)
+            when cities.country_id in (5,6) then cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.mexCommission') as double)/1.1 --(VN, ID)
+        end) / power(double '10.0', coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int),0)) as old_comms_pre_vat
         ,coalesce(cast(json_extract_scalar(snapshot_detail, '$.currency.exponent') as int) ,0) as currency_exponent
         ,cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.priceExcludeTaxInMinorUnit') as double) as priceExcludeTaxInMinorUnit
         ,case when json_extract_scalar(fo.snapshot_detail, '$.newTaxFlow') = 'true' then true else false end as newTaxFlow
         ,cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.priceAfterCampaignInMinorUnit') as double) as priceAfterCampaignInMinorUnit
         , coalesce(cast(json_extract_scalar(fo.snapshot_detail, '$.cartWithQuote.foodQuoteInMin.inclTaxInMin') as double),0) as taxValue
+        ,json_extract(snapshot_detail, '$.cartWithQuote.discounts') as array_discount
         ,date(created_time) as date_local
     from public.prejoin_food_order fo
+    left join public.cities on fo.city_id = cities.id
     where date(partition_date) >= date([[inc_start_date]]) - interval '1' day
         AND date(partition_date) <= DATE([[inc_end_date]]) + interval '1' day
         AND date(created_time) >= date([[inc_start_date]])
         AND date(created_time) <= date([[inc_end_date]]) 
-
 )
 ,fo_gkmm as (
     select 
@@ -49,7 +55,7 @@ select
     ,fo.last_booking_code
     ,fo.key
     ,case when fo_gkmm_agg.key is not null then 1 else 0 end as is_gkmm
-    ,round(coalesce(fo_gkmm_agg.total_base_from_gf, fo.comms_pre_vat/fo.comms_rate),3) as gf_base
+    ,round(coalesce(fo_gkmm_agg.total_base_from_gf, fo.comms_pre_vat/fo.comms_rate, fo.old_comms_pre_vat/fo.comms_rate),3) as gf_base
     ,round(total_base_from_gk,3) as gk_base
     ,case 
         when newTaxFlow then (fo.priceAfterCampaignInMinorUnit - fo.taxValue) / power(double '10.0', currency_exponent)
