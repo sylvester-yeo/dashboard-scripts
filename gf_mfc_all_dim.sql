@@ -12,12 +12,6 @@
     Resulting table: structured for leadership dashboard - daily/weekly/monthly, city/coutnry, im/cm, cashless/cash
 */
 
-/*
-    Reading from table: slide.gf_mfc_brand
-    Structure of preceding table: merchant level, mfc/non-mfc, daily
-    Resulting table: structured for leadership dashboard - daily/weekly/monthly, city/coutnry, im/cm, cashless/cash
-*/
-
 with base as (
     SELECT
         date_local
