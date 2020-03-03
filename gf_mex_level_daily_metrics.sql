@@ -2,13 +2,9 @@ with fo as (
     select 
         order_id
         ,date_local
-        ,comms_pre_vat
-        ,(total_order_mfc_discount_affecting_comms) as total_order_mfc_discount_affecting_comms
-        ,(total_mfc_inc_tax) as total_mfc_inc_tax
-    from slide.gf_comms_base_v2
-    where date(partition_date) >= date([[inc_start_date]]) - interval '1' day
-        AND date(partition_date) <= DATE([[inc_end_date]]) + interval '1' day
-        AND date(date_local) >= date([[inc_start_date]])
+        ,gf_base
+    from slide.gf_comms_base
+    where date(date_local) >= date([[inc_start_date]])
         AND date(date_local) <= date([[inc_end_date]])
 )
 , bk_metrics as (
@@ -153,7 +149,7 @@ with fo as (
 	      WHEN 
 	  	  		bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-	            coalesce(bookings.commission_from_merchant,fo.comms_pre_vat) / fx_one_usd
+	            bookings.commission_from_merchant / fx_one_usd
 	     ELSE 0.0
 	     END) AS mex_commission
 	       
@@ -161,7 +157,7 @@ with fo as (
 	      WHEN 
 	      		bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-				coalesce(bookings.commission_from_merchant,fo.comms_pre_vat)
+				bookings.commission_from_merchant
 	     ELSE 0.0
 	     END) AS mex_commission_local
 
@@ -169,7 +165,8 @@ with fo as (
         WHEN 
             bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
+            cast(coalesce(fo.gf_base,0) as double)
+			-- cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
         ELSE 0.0
         END) AS base_for_mex_commission_local
 
@@ -177,7 +174,8 @@ with fo as (
         WHEN 
             bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
+            cast(coalesce(fo.gf_base/fx_one_usd,0) as double)
+            -- cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
         ELSE 0.0
         END) AS base_for_mex_commission
 	       
@@ -337,6 +335,10 @@ with fo as (
 	     THEN 1 
 	     ELSE 0 END) AS effective_first_allocated_orders
 
+	,sum(subsidy) as tsp_subsidy
+
+	,sum(subsidy/fx_one_usd) as tsp_subsidy_usd
+
 	,sum(incentives) AS incentives_local	     
 	     
 	,sum(incentives/fx_one_usd) AS incentives_usd
@@ -354,6 +356,10 @@ with fo as (
 	     THEN 
 	     	spot_incentive_bonus/fx_one_usd
 	     ELSE 0 END) AS spot_incentive_bonus_usd
+	
+	,sum(small_order_fee) as sof_local
+
+	,sum(small_order_fee/fx_one_usd) as sof_usd
 
     /*============takeaway orders============*/
     ,sum(case 
@@ -392,7 +398,7 @@ with fo as (
         when 
             is_takeaway = 1 and booking_state_simple = 'COMPLETED'
         THEN 
-            coalesce(fo.comms_pre_vat,bookings.commission_from_merchant) 
+            bookings.commission_from_merchant
         ELSE 0
         END) AS takeaway_mex_commission_local  
 
@@ -400,7 +406,7 @@ with fo as (
         when 
             is_takeaway = 1 and booking_state_simple = 'COMPLETED'
         THEN 
-            coalesce(fo.comms_pre_vat,bookings.commission_from_merchant) / fx_one_usd
+			bookings.commission_from_merchant / fx_one_usd
         ELSE 0
         END) AS takeaway_mex_commission_usd 
 
@@ -408,7 +414,8 @@ with fo as (
         WHEN 
             is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
+            cast(coalesce(fo.gf_base,0) as double)
+			-- cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
         ELSE 0.0
         END) AS takeaway_base_for_mex_commission_local
 
@@ -416,7 +423,8 @@ with fo as (
         WHEN 
             is_takeaway = 1 and bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
+            cast(coalesce(fo.gf_base,0) as double) / fx_one_usd
+			-- cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
         ELSE 0.0
         END) AS takeaway_base_for_mex_commission
 
@@ -499,7 +507,7 @@ with fo as (
 	      WHEN 
 	  	  		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-	            coalesce(bookings.commission_from_merchant,fo.comms_pre_vat) / fx_one_usd
+			bookings.commission_from_merchant / fx_one_usd
 	     ELSE 0.0
 	     END) AS scheduled_mex_commission
 	       
@@ -507,7 +515,7 @@ with fo as (
 	      WHEN 
 	      		is_advance = 1 and bookings.booking_state_simple = 'COMPLETED'
 	      THEN
-				coalesce(bookings.commission_from_merchant,fo.comms_pre_vat)
+				bookings.commission_from_merchant
 	     ELSE 0.0
 	     END) AS scheduled_mex_commission_local
 
@@ -515,7 +523,8 @@ with fo as (
         WHEN 
             is_advance = 1 and bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
+            cast(coalesce(fo.gf_base,0) as double)
+			-- cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double)
         ELSE 0.0
         END) AS scheduled_base_for_mex_commission_local
 
@@ -523,7 +532,8 @@ with fo as (
         WHEN 
             is_advance = 1 and bookings.booking_state_simple = 'COMPLETED' 
         THEN 
-            cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
+            cast(coalesce(fo.gf_base,0) as double) / fx_one_usd
+			-- cast(bookings.food_sub_total - coalesce(fo.total_order_mfc_discount_affecting_comms,0) as double) / fx_one_usd
         ELSE 0.0
         END) AS scheduled_base_for_mex_commission
 
@@ -570,8 +580,7 @@ with fo as (
 	     
 	FROM datamart_grabfood.base_bookings bookings
 
-    left join fo 
-        on bookings.order_id = fo.order_id
+    left join fo on bookings.order_id = fo.order_id
 		
 	WHERE date(bookings.date_local) >= date([[inc_start_date]])
 	    AND date(bookings.date_local) <= DATE([[inc_end_date]])

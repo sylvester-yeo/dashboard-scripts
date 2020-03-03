@@ -122,10 +122,14 @@ FROM
 			,sum(jobs_unread) as jobs_unread
 			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)) as incentive_payout_usd
 			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)) AS incentive_payout_local
-			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)+coalesce(dax_delivery_fare,0)-coalesce(delivery_fare_gf,0)) as incentive_payout_usd_w_tsp
-			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)+coalesce(dax_delivery_fare_local,0)-coalesce(delivery_fare_gf_local,0)) AS incentive_payout_local_w_tsp
+			,sum(COALESCE(incentives_usd,0)+COALESCE(spot_incentive_bonus_usd,0)+coalesce(tsp_subsidy_usd,0)) as incentive_payout_usd_w_tsp
+			,SUM(COALESCE(incentives_local,0)+COALESCE(spot_incentive_bonus_local,0)+coalesce(tsp_subsidy_local,0)) AS incentive_payout_local_w_tsp
+			,sum(coalesce(tsp_subsidy_local,0)) as tsp_subsidy_local 
+			,sum(coalesce(tsp_subsidy_usd,0)) as tsp_subsidy_usd
 			,sum(tips_local) as tips_local
 			,sum(tips_usd) as tips_usd
+			,sum(sof_local) as sof_local
+			,sum(sof_usd) as sof_usd
 
             /*takeaway orders */
             ,sum(total_takeaway_orders) as total_takeaway_orders
@@ -164,7 +168,7 @@ FROM
 				date_trunc('month',date_local) AS month_of,	
 				*
 				FROM
-				slide.gf_mex_level_daily_metrics			
+				slide.gf_mex_level_daily_metrics_temp			
 				WHERE partition_date_local >= date_trunc('month',date([[inc_start_date]])) - INTERVAL '1' MONTH
 				AND partition_date_local <= date([[inc_end_date]])
 			)
