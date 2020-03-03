@@ -6,10 +6,10 @@ with first_brand_order_label as (
       ,date_trunc('week', date(aa.date_local)) as week_of
       ,cast(min(pax_first_gf_order_date_by_chain) as date) AS first_brand_order_date
     from slide.grabfood_pax_mex_state aa 
-    where date_trunc('week', date(aa.pax_first_gf_order_date_by_chain)) = date_trunc('week', date('2019-12-02'))
+    where date_trunc('week', date(aa.pax_first_gf_order_date_by_chain)) = date_trunc('week', date([[inc_start_date]]))
     --   and aa.mex_country_id = 4
-        and date(aa.date_local) >= date('2019-12-02') - interval '14' day
-        and date(aa.date_local) <= date('2019-12-02') + interval '7' day
+        and date(aa.date_local) >= date([[inc_start_date]]) - interval '14' day
+        and date(aa.date_local) <= date([[inc_start_date]]) + interval '7' day
         group by 1,2,3,4
 )
 ,base_bookings as (
@@ -32,7 +32,7 @@ with first_brand_order_label as (
         and bb.merchant_id = first_brand_order_label.merchant_id
         and cities.name = first_brand_order_label.mex_city_name
     left join slide.dim_merchants mex on bb.merchant_id = mex.merchant_id
-    where date_trunc('week', date(bb.date_local)) = date_trunc('week', date('2019-12-02'))
+    where date_trunc('week', date(bb.date_local)) = date_trunc('week', date([[inc_start_date]]))
         and booking_state_simple = 'COMPLETED'
         -- and bb.city_id = 6
 )
@@ -65,8 +65,8 @@ with first_brand_order_label as (
     from datamart_grabfood.base_bookings bb 
     left join public.cities on bb.city_id = cities.id
     left join slide.dim_merchants mex on bb.merchant_id = mex.merchant_id
-    where date_trunc('week', date(date_local)) >= date('2019-12-02') - interval '28' day
-        and date(date_local) < date('2019-12-02')
+    where date_trunc('week', date(date_local)) >= date([[inc_start_date]]) - interval '28' day
+        and date(date_local) < date([[inc_start_date]])
         and booking_state_simple = 'COMPLETED'
         -- and bb.city_id = 6 
     group by 1,2,3,4
@@ -78,7 +78,7 @@ with first_brand_order_label as (
         ,current_base.city_name
         ,current_base.country_id
         ,case
-            when date_trunc('week', current_base.first_brand_order_date) = date_trunc('week', date('2019-12-02')) then 'First Brand Order'
+            when date_trunc('week', current_base.first_brand_order_date) = date_trunc('week', date([[inc_start_date]])) then 'First Brand Order'
             when datediff(current_base.min_date_local,prev_eight_weeks.max_date_local) <= 28 then 'Active Pax'
             else 'Revived Pax' end as pax_label
         ,current_base.no_of_completed_orders
@@ -102,14 +102,14 @@ with first_brand_order_label as (
         ,bb.country_name
         ,pax_label.max_date_local
         ,cast(min(date_local) as date) as next_date_local
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '7' day) then 1 else 0 end) as first_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '14' day) then 1 else 0 end) as second_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '21' day) then 1 else 0 end) as third_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '28' day) then 1 else 0 end) as fourth_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '35' day) then 1 else 0 end) as fifth_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '42' day) then 1 else 0 end) as sixth_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '49' day) then 1 else 0 end) as seventh_week_completed_order
-        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date('2019-12-02') + interval '56' day) then 1 else 0 end) as eighth_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '7' day) then 1 else 0 end) as first_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '14' day) then 1 else 0 end) as second_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '21' day) then 1 else 0 end) as third_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '28' day) then 1 else 0 end) as fourth_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '35' day) then 1 else 0 end) as fifth_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '42' day) then 1 else 0 end) as sixth_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '49' day) then 1 else 0 end) as seventh_week_completed_order
+        ,sum(case when date_trunc('week', date(date_local)) = date_trunc('week', date([[inc_start_date]]) + interval '56' day) then 1 else 0 end) as eighth_week_completed_order
         ,sum(pax_label.no_of_completed_orders) as current_week_no_of_completed_orders
         ,sum(pax_label.no_of_promo_orders) as current_week_no_of_promo_orders
         ,sum(pax_label.total_basket_size) as current_week_total_basket_size
@@ -122,8 +122,8 @@ with first_brand_order_label as (
         on pax_label.passenger_id = bb.passenger_id
         and pax_label.business_name = mex.business_name
         and pax_label.city_name = cities.name
-    where date(date_local) >= date('2019-12-02') + interval '7' day 
-        and date(date_local) < date('2019-12-02') + interval '63' day 
+    where date(date_local) >= date([[inc_start_date]]) + interval '7' day 
+        and date(date_local) < date([[inc_start_date]]) + interval '63' day 
         and booking_state_simple = 'COMPLETED'
         -- and bb.city_id = 6
     group by 1,2,3,4,5,6
@@ -132,9 +132,9 @@ select *, week_of as partition_date from (
     select 
         pax_label
         ,business_name
-,city_name
-,country_name
-        ,date_trunc('week', date('2019-12-02')) as week_of
+        ,city_name
+        ,country_name
+        ,date_trunc('week', date([[inc_start_date]])) as week_of
         ,count(1) as no_of_pax
         ,count(case when first_week_completed_order > 0 then passenger_id else null end) as first_week
         ,count(case when first_week_completed_order > 0 and second_week_completed_order > 0 then passenger_id else null end) as second_week
