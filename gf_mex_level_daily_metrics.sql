@@ -335,9 +335,15 @@ with fo as (
 	     THEN 1 
 	     ELSE 0 END) AS effective_first_allocated_orders
 
-	,sum(subsidy) as tsp_subsidy
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN subsidy else 0 end) as tsp_subsidy_local
 
-	,sum(subsidy/fx_one_usd) as tsp_subsidy_usd
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN subsidy/fx_one_usd else 0 end) as tsp_subsidy_usd
 
 	,sum(incentives) AS incentives_local	     
 	     
@@ -357,9 +363,15 @@ with fo as (
 	     	spot_incentive_bonus/fx_one_usd
 	     ELSE 0 END) AS spot_incentive_bonus_usd
 	
-	,sum(small_order_fee) as sof_local
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN small_order_fee else 0 end) as sof_local
 
-	,sum(small_order_fee/fx_one_usd) as sof_usd
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN small_order_fee/fx_one_usd else 0 end) as sof_usd
 
     /*============takeaway orders============*/
     ,sum(case 

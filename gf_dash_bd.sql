@@ -134,6 +134,10 @@ with mex_con as (
     ,sum(a.incentives_usd) as incentives_usd
     ,sum(a.spot_incentive_bonus_local) as spot_incentive_bonus_local
     ,sum(a.spot_incentive_bonus_usd) as spot_incentive_bonus_usd
+    ,sum(a.tsp_subsidy) as tsp_subsidy_local
+    ,sum(a.tsp_subsidy_usd) as tsp_subsidy_usd
+    ,sum(a.sof_local) as sof_local
+    ,sum(a.sof_usd) as sof_usd
     ,sum(a.promo_expense) as promo_expense_usd
     ,sum(a.promo_expense_local) as promo_expense_local
     
@@ -188,6 +192,10 @@ with mex_con as (
     ,sum(case when a.restaurant_partner_status = 'partner' then a.cancellations_merchant END) as total_partner_total_mex_cancellations
     ,sum(case when a.restaurant_partner_status = 'partner' then a.incentives_local END) as total_partner_incentives_local
     ,sum(case when a.restaurant_partner_status = 'partner' then a.incentives_usd END) as total_partner_incentives_usd
+    ,sum(case when a.restaurant_partner_status = 'partner' then a.tsp_subsidy END) as total_partner_tsp_subsidy_local
+    ,sum(case when a.restaurant_partner_status = 'partner' then a.tsp_subsidy_usd END) as total_partner_tsp_subsidy_usd
+    ,sum(case when a.restaurant_partner_status = 'partner' then a.sof_local END) as total_partner_sof_local
+    ,sum(case when a.restaurant_partner_status = 'partner' then a.sof_usd END) as total_partner_sof_usd
     ,sum(case when a.restaurant_partner_status = 'partner' then a.spot_incentive_bonus_local END) as total_partner_spot_incentive_bonus_local
     ,sum(case when a.restaurant_partner_status = 'partner' then a.spot_incentive_bonus_usd END) as total_partner_spot_incentive_bonus_usd
     ,sum(case when a.restaurant_partner_status = 'partner' then a.promo_expense END) as total_partner_promo_expense_usd
@@ -211,7 +219,7 @@ with mex_con as (
     ,sum(case when a.business_model = 'Integrated' then a.basket_size_local else 0 end) as im_basket_size_local
 
   FROM
-    slide.gf_mex_level_daily_metrics a
+    slide.gf_mex_level_daily_metrics_temp a
   LEFT JOIN mex_snapshots b
     on a.merchant_id = b.merchant_id
     AND date(a.date_local) = b.date_mex_snapshots
@@ -349,7 +357,7 @@ with mex_con as (
     from slide.gf_mfp_merchant
     group by 1,2,3
 )
-,ads as (
+/*,ads as (
   select 
     indiv_mex as merchant_id
     ,city_name
@@ -360,7 +368,7 @@ with mex_con as (
   where partition_date >= date('2019-04-01')
     and indiv_mex is not null
   group by 1,2,3
-)
+)*/
 SELECT
     activation_date
     -- ,date_signed
@@ -398,10 +406,14 @@ SELECT
     ,sum(total_dax_cancellations) as total_dax_cancellations
     ,sum(total_operator_cancellations) as total_operator_cancellations
     ,sum(total_mex_cancellations) as total_mex_cancellations
+    ,sum(tsp_subsidy_local) as tsp_subsidy_local
+    ,sum(tsp_subsidy_usd) as tsp_subsidy_usd
     ,sum(incentives_local) as incentives_local
     ,sum(incentives_usd) as incentives_usd
     ,sum(spot_incentive_bonus_local) as spot_incentive_bonus_local
     ,sum(spot_incentive_bonus_usd) as spot_incentive_bonus_usd
+    ,sum(sof_local) as sof_local
+    ,sum(sof_usd) as sof_usd
     ,sum(promo_expense_usd) as promo_expense_usd
     ,sum(promo_expense_local) as promo_expense_local
     ,sum(promo_incoming_orders) as promo_incoming_orders
@@ -440,10 +452,14 @@ SELECT
     ,sum(total_partner_total_dax_cancellations) as total_partner_total_dax_cancellations
     ,sum(total_partner_total_operator_cancellations) as total_partner_total_operator_cancellations
     ,sum(total_partner_total_mex_cancellations) as total_partner_total_mex_cancellations
+    ,sum(total_partner_tsp_subsidy_local) as total_partner_tsp_subsidy_local
+    ,sum(total_partner_tsp_subsidy_usd) as total_partner_tsp_subsidy_usd
     ,sum(total_partner_incentives_local) as total_partner_incentives_local
     ,sum(total_partner_incentives_usd) as total_partner_incentives_usd
     ,sum(total_partner_spot_incentive_bonus_local) as total_partner_spot_incentive_bonus_local
     ,sum(total_partner_spot_incentive_bonus_usd) as total_partner_spot_incentive_bonus_usd
+    ,sum(total_partner_sof_local) as total_partner_sof_local
+    ,sum(total_partner_sof_usd) as total_partner_sof_usd
     ,sum(total_partner_promo_expense_usd) as total_partner_promo_expense_usd
     ,sum(total_partner_promo_expense_local) as total_partner_promo_expense_local
     ,sum(total_partner_promo_incoming_orders) as total_partner_promo_incoming_orders
@@ -537,8 +553,8 @@ SELECT
     ,SUM(mf_promo_code_perday_outlet_local) AS mf_promo_code_perday_outlet_local
     ,SUM(mf_promo_code_perday_outlet_usd) AS mf_promo_code_perday_outlet_usd
 
-    ,sum(ad_spend_usd) as ad_spend_usd
-    ,sum(ad_spend_local) as ad_spend_local
+    -- ,sum(ad_spend_usd) as ad_spend_usd
+    -- ,sum(ad_spend_local) as ad_spend_local
     
 FROM(
     SELECT
@@ -621,8 +637,8 @@ FROM(
         AS mf_promo_code_perday_outlet_usd
         -- ,COALESCE(mf_promo_code_perday_outlet_usd,0) AS mf_promo_code_perday_outlet_usd
         
-        ,ads.ad_spend_local
-        ,ads.ad_spend_usd
+        -- ,ads.ad_spend_local
+        -- ,ads.ad_spend_usd
     FROM
       orders
 
@@ -642,9 +658,9 @@ FROM(
         and orders.city_name = mfp.city
         and date(orders.date_local) = date(mfp.date_local)
     
-    LEFT JOIN ads 
-      on orders.merchant_id = ads.merchant_id
-      and orders.city_name = ads.city_name
-      and date(orders.date_local) = date(ads.date_local)
+    -- LEFT JOIN ads 
+    --   on orders.merchant_id = ads.merchant_id
+    --   and orders.city_name = ads.city_name
+    --   and date(orders.date_local) = date(ads.date_local)
     )
 group by 1,2,3,4,5,6,7,8,9
