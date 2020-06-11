@@ -17,8 +17,6 @@ select *, date_local as partition_date_local from (
         ,sum(total_grab_promo_spend/fx_one_usd) as total_grab_promo_spend_usd
         ,sum(total_mfd) as total_mfd_local
         ,sum(total_mfd/fx_one_usd) as total_mfd_usd
-        ,sum(net_revenue) as net_revenue_local
-        ,sum(net_revenue/fx_one_usd) as net_revenue_usd
 
         ,sum(case when mfc_indicator = 'MFC order' then 1 else 0 end) as mfc_orders
         ,sum(case when mfp_indicator = 'MFP order' then 1 else 0 end) as mfp_orders
@@ -55,6 +53,10 @@ select *, date_local as partition_date_local from (
         ,sum(pax_fare/fx_one_usd) as pax_fare_usd
         ,sum(small_order_fee) as small_order_fee_local
         ,sum(small_order_fee/fx_one_usd) as small_order_fee_usd
+        ,sum(convenience_fee) as convenience_fee_local
+        ,sum(convenience_fee/fx_one_usd) as convenience_fee_usd
+        ,sum(pax_platform_fee) as pax_platform_fee_local
+        ,sum(pax_platform_fee/fx_one_usd) as pax_platform_fee_usd
         ,sum(dax_fare) as dax_fare_local
         ,sum(dax_fare/fx_one_usd) as dax_fare_usd
         ,sum(subsidy) as subsidy_local
@@ -76,7 +78,7 @@ select *, date_local as partition_date_local from (
 
         ,sum(case when restaurant_partner_status = 'partner' then coalesce(mfc_prod_grab_promo_spend/fx_one_usd,0) + coalesce(mfc_prod_mex_promo_spend/fx_one_usd,0) else 0 end) as partner_total_mfc_prod_promo_usd
         ,sum(case when restaurant_partner_status = 'partner' then coalesce(mfc_prod_grab_promo_spend,0) + coalesce(mfc_prod_mex_promo_spend,0) else 0 end) as partner_total_mfc_prod_promo_local
-    from slide.gf_mfd --change to the updated table
+    from slide.gf_mfd_order_level
     where date_local >= [[inc_start_date]]
         and date_local <= [[inc_end_date]]
     group by 1,2,3,4,5,6,7

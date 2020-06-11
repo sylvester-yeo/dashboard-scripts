@@ -134,7 +134,7 @@ with mex_con as (
     ,sum(a.incentives_usd) as incentives_usd
     ,sum(a.spot_incentive_bonus_local) as spot_incentive_bonus_local
     ,sum(a.spot_incentive_bonus_usd) as spot_incentive_bonus_usd
-    ,sum(a.tsp_subsidy) as tsp_subsidy_local
+    ,sum(a.tsp_subsidy_local) as tsp_subsidy_local
     ,sum(a.tsp_subsidy_usd) as tsp_subsidy_usd
     ,sum(a.sof_local) as sof_local
     ,sum(a.sof_usd) as sof_usd
@@ -192,7 +192,7 @@ with mex_con as (
     ,sum(case when a.restaurant_partner_status = 'partner' then a.cancellations_merchant END) as total_partner_total_mex_cancellations
     ,sum(case when a.restaurant_partner_status = 'partner' then a.incentives_local END) as total_partner_incentives_local
     ,sum(case when a.restaurant_partner_status = 'partner' then a.incentives_usd END) as total_partner_incentives_usd
-    ,sum(case when a.restaurant_partner_status = 'partner' then a.tsp_subsidy END) as total_partner_tsp_subsidy_local
+    ,sum(case when a.restaurant_partner_status = 'partner' then a.tsp_subsidy_local END) as total_partner_tsp_subsidy_local
     ,sum(case when a.restaurant_partner_status = 'partner' then a.tsp_subsidy_usd END) as total_partner_tsp_subsidy_usd
     ,sum(case when a.restaurant_partner_status = 'partner' then a.sof_local END) as total_partner_sof_local
     ,sum(case when a.restaurant_partner_status = 'partner' then a.sof_usd END) as total_partner_sof_usd
@@ -219,7 +219,7 @@ with mex_con as (
     ,sum(case when a.business_model = 'Integrated' then a.basket_size_local else 0 end) as im_basket_size_local
 
   FROM
-    slide.gf_mex_level_daily_metrics_temp a
+    slide.gf_mex_level_daily_metrics a
   LEFT JOIN mex_snapshots b
     on a.merchant_id = b.merchant_id
     AND date(a.date_local) = b.date_mex_snapshots

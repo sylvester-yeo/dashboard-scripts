@@ -71,8 +71,8 @@ FROM
 	 slide.gf_daily_city_base_metrics_agg
 	 WHERE 
 	 by_day_week_month = 'By Week'
-	--  AND time_period >= date_trunc('week',date([[inc_start_date]]))
-	--  AND time_period <= date([[inc_end_date]])
+	 AND time_period >= date_trunc('week',date([[inc_start_date]]))
+	 AND time_period <= date([[inc_end_date]])
  ) base
  
 
@@ -162,8 +162,8 @@ LEFT JOIN
 	 ,CAST(SUM(csat_sum) AS DOUBLE)/CAST(SUM(csat_count) AS DOUBLE) AS avg_csat
 	 ,sum(total_contact) AS total_contact
 	 FROM slide.gf_dash_ce_metrics
-	--  WHERE date_local>=DATE_TRUNC('week',date([[inc_start_date]]))
-	 	-- and date_local <= date([[inc_end_date]]) + interval '7' day
+	 WHERE date_local>=DATE_TRUNC('week',date([[inc_start_date]]))
+	 	and date_local <= date([[inc_end_date]]) + interval '7' day
 	 GROUP BY 1,2,3,4,5,6,7,8 )
 	 
 	 UNION ALL 
@@ -180,8 +180,8 @@ LEFT JOIN
 	 ,CAST(SUM(csat_sum) AS DOUBLE)/CAST(SUM(csat_count) AS DOUBLE) AS avg_csat
 	 ,sum(total_contact) AS total_contact
 	 FROM slide.gf_dash_ce_metrics
-	--  WHERE date_local>=DATE_TRUNC('week',date([[inc_start_date]]))
-	 	-- and date_local <= date([[inc_end_date]]) + interval '7' day
+	 WHERE date_local>=DATE_TRUNC('week',date([[inc_start_date]]))
+	 	and date_local <= date([[inc_end_date]]) + interval '7' day
 	 GROUP BY 1,2,3,4,5,6,7,8)
  
  ) ce
@@ -271,8 +271,8 @@ FROM
 	 SELECT * FROM slide.gf_daily_city_base_metrics_agg
 	 WHERE 
 	 by_day_week_month = 'By Month'
-	--  AND time_period >= date_trunc('month',date([[inc_start_date]]))
-	--  AND time_period <= date([[inc_end_date]])
+	 AND time_period >= date_trunc('month',date([[inc_start_date]]))
+	 AND time_period <= date([[inc_end_date]])
  ) base
 
 LEFT JOIN (SELECT *, 'All' as partner_status FROM slide.gf_dash_active_mex_all_dim) mex_dim
@@ -361,8 +361,8 @@ LEFT JOIN
 	 ,CAST(SUM(csat_sum) AS DOUBLE)/CAST(SUM(csat_count) AS DOUBLE) AS avg_csat
 	 ,sum(total_contact) AS total_contact
 	 FROM slide.gf_dash_ce_metrics
-	--  WHERE date_local>=DATE_TRUNC('month',date([[inc_start_date]]))
-	 	-- and date_local <= date([[inc_end_date]]) + interval '1' month
+	 WHERE date_local>=DATE_TRUNC('month',date([[inc_start_date]]))
+	 	and date_local <= date([[inc_end_date]]) + interval '1' month
 	 GROUP BY 1,2,3,4,5,6,7,8 )
 	 
 	 UNION ALL 
@@ -379,8 +379,8 @@ LEFT JOIN
 	 ,CAST(SUM(csat_sum) AS DOUBLE)/CAST(SUM(csat_count) AS DOUBLE) AS avg_csat
 	 ,sum(total_contact) AS total_contact
 	 FROM slide.gf_dash_ce_metrics
-	--  WHERE date_local>=DATE_TRUNC('month',date([[inc_start_date]]))
-	 	-- and date_local <= date([[inc_end_date]])  + interval '1' month
+	 WHERE date_local>=DATE_TRUNC('month',date([[inc_start_date]]))
+	 	and date_local <= date([[inc_end_date]])  + interval '1' month
 	 GROUP BY 1,2,3,4,5,6,7,8)
  ) ce
 
@@ -468,8 +468,8 @@ FROM
 	  slide.gf_daily_city_base_metrics_agg
 	 WHERE 
 	 by_day_week_month = 'By Day'
-	--  AND time_period >= date([[inc_start_date]])
-	--  AND time_period <= date([[inc_end_date]])
+	 AND time_period >= date([[inc_start_date]])
+	 AND time_period <= date([[inc_end_date]])
  ) base
 
 LEFT JOIN (SELECT *, 'All' as partner_status FROM slide.gf_dash_active_mex_all_dim) mex_dim
@@ -557,8 +557,8 @@ LEFT JOIN
 	 ,CAST(SUM(csat_sum) AS DOUBLE)/CAST(SUM(csat_count) AS DOUBLE) AS avg_csat
 	 ,sum(total_contact) AS total_contact
 	 FROM slide.gf_dash_ce_metrics
-	--  WHERE date_local>=DATE([[inc_start_date]])
-	 	-- and date_local <= date([[inc_end_date]])
+	 WHERE date_local>=DATE([[inc_start_date]])
+	 	and date_local <= date([[inc_end_date]])
 	 GROUP BY 1,2,3,4,5,6,7,8 )
 	 
 	 UNION ALL 
@@ -575,8 +575,8 @@ LEFT JOIN
 	 ,CAST(SUM(csat_sum) AS DOUBLE)/CAST(SUM(csat_count) AS DOUBLE) AS avg_csat
 	 ,sum(total_contact) AS total_contact
 	 FROM slide.gf_dash_ce_metrics
-	--  WHERE date_local>=DATE([[inc_start_date]])
-	 	-- and date_local <= date([[inc_end_date]])
+	 WHERE date_local>=DATE([[inc_start_date]])
+	 	and date_local <= date([[inc_end_date]])
 	 GROUP BY 1,2,3,4,5,6,7,8)
  ) ce
 

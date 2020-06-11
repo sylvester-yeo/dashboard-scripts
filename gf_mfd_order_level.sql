@@ -52,6 +52,8 @@ with mfc as (
         ,bb.small_order_fee
         ,bb.dax_fare
         ,bb.subsidy
+        ,bb.convenience_fee
+        ,bb.pax_platform_fee
 
         ,bb.sub_total
         ,bb.basket_size
@@ -125,7 +127,6 @@ select
     ,total_promo_spend
     ,grab_promo_code_spend + grab_mfc_prod_spend + mfc_gsheet_grab_promo_spend as total_grab_promo_spend
     ,total_mfc_mex_promo_spend + mfp_mex_promo_spend as total_mfd
-    ,(commission_total + small_order_fee - subsidy - incentives - spot_incentive_bonus - grab_promo_code_spend - grab_mfc_prod_spend - mfc_gsheet_grab_promo_spend) as net_revenue
 
     /* MFD stuff */
     ,mfc_indicator
@@ -154,6 +155,8 @@ select
     /* base_bookings order information */
     ,pax_fare 
     ,small_order_fee
+    ,convenience_fee
+    ,pax_platform_fee
     ,dax_fare
     ,subsidy
     ,incentives

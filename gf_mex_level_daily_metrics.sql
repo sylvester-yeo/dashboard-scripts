@@ -373,6 +373,26 @@ with fo as (
 	     	booking_state_simple = 'COMPLETED'
 	     THEN small_order_fee/fx_one_usd else 0 end) as sof_usd
 
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN convenience_fee else 0 end) as convenience_fee_local
+
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN convenience_fee/fx_one_usd else 0 end) as convenience_fee_usd
+
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN pax_platform_fee else 0 end) as pax_platform_fee_local
+
+	,sum(CASE
+	     WHEN 
+	     	booking_state_simple = 'COMPLETED'
+	     THEN pax_platform_fee/fx_one_usd else 0 end) as pax_platform_fee_usd
+
     /*============takeaway orders============*/
     ,sum(case 
         when 
